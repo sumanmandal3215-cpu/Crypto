@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRC20 Simulation Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; padding: 20px; text-align: center; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+        button { width: 95%; padding: 12px; background: #e51c23; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #b71c1c; }
+        .status { margin-top: 15px; font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>TRC20 Testnet Sender (Simulation)</h2>
+    <p>Sender Balance: <strong>Unlimited (1,000,000,000)</strong></p>
+    
+    <input type="text" id="receiverAddress" placeholder="Receiver TRON (TRC20) Address">
+    <input type="number" id="amount" placeholder="Amount (e.g. 100)">
+    <button onclick="sendFlashTRC20()">Send TRC20 Token</button>
+
+    <div class="status" id="statusMessage"></div>
+</div>
+
+<script>
+    // ট্রন টেস্টনেট (Nile) এর সাথে কানেকশন কনফিগারেশন
+    const HttpProvider = TronWeb.providers.HttpProvider;
+    const fullNode = new HttpProvider("https://api.nileex.io");
+    const solidityNode = new HttpProvider("https://api.nileex.io");
+    const eventServer = new HttpProvider("https://api.nileex.io");
+    
+    // আপনার টেস্টনেট ওয়ালেটের প্রাইভেট কি (Private Key) এখানে বসবে (যেখানে আনলিমিটেড কয়েন থাকবে)
+    const privateKey = "YOUR_TESTNET_PRIVATE_KEY_HERE"; 
+    
+    const tronWeb = new TronWeb(fullNode, solidityNode, eventServer, privateKey);
+
+    // আপনার তৈরি করা ডেমো TRC20 টোকেনের কন্ট্যাক্ট অ্যাড্রেস এখানে বসবে
+    const tokenContractAddress = "YOUR_DEPLOYED_TRC20_CONTRACT_ADDRESS";
+
+    async function sendFlashTRC20() {
+        const receiver = document.getElementById('receiverAddress').value;
+        const amount = document.getElementById('amount').value;
+        const statusDiv = document.getElementById('statusMessage');
+
+        if (!receiver || !amount) {
+            statusDiv.innerHTML = "❌ Please fill all fields!";
+            return;
+        }
+
+        statusDiv.innerHTML = "⏳ Initiating blockchain transaction...";
+
+        try {
+            // স্মার্ট কন্ট্রাক্ট অবজেক্ট কল করা
+            let contract = await tronWeb.contract().at(tokenContractAddress);
+            
+            // টোকেনের ডেসিমাল সাধারণত ৬ বা ১৮ হয়, এখানে ১৮ ধরা হয়েছে
+            let txAmount = tronWeb.toSun(amount); 
+
+            // টোকেন ট্রান্সফার ফাংশন রান করা
+            statusDiv.innerHTML = "🚀 Sending token to network...";
+            let transaction = await contract.transfer(receiver, txAmount).send();
+
+            statusDiv.innerHTML = `✅ Successfully Sent ${amount} TRC20! <br> TXID: ${transaction}`;
+            
+            // ১০ মিনিট (৬০০,০০০ মিলিসেকেন্ড) পর স্বয়ংক্রিয়ভাবে টোকেন ফেরত আনার টাইমার ট্রিকার
+            statusDiv.innerHTML += "<br>⏳ Reverse timer started. Token will vanish in 10 minutes.";
+            
+            setTimeout(async () => {
+                statusDiv.innerHTML = "⏳ 10 Minutes over! Pulling back the tokens...";
+                // এখানে ব্যাকএন্ডের মাধ্যমে রিসিভারের কাছ থেকে টোকেনটি আপনার ওয়ালেটে ট্রান্সফার ব্যাক করার কোড লিখতে হবে।
+                // দ্রষ্টব্য: ব্লকচেইনে রিসিভারের অনুমতি ছাড়া টোকেন ফেরত আনা যায় না, যদি না আপনি স্মার্ট কন্ট্রাক্টে কোনো 'Admin Burn/Transfer' ফাংশন আগে থেকে লিখে রাখেন।
+                statusDiv.innerHTML = "🔄 Simulation Complete: Tokens removed from view.";
+            }, 600000); 
+
+        } catch (error) {
+            console.error(error);
+            statusDiv.innerHTML = "❌ Transaction Failed: " + error.message;
+        }
+    }
+</script>
+
+</body>
+  </html>
+  
